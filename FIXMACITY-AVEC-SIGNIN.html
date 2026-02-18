@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FixMaCity - Améliorons nos villes ensemble</title>
+    <meta name="description" content="Signalez les problèmes de votre ville, votez, aidez à résoudre. Ensemble, améliorons nos quartiers.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- LEAFLET - 100% GRATUIT, PAS DE CARTE BANCAIRE -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        #map { height: 600px; width: 100%; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- Header -->
+    <nav class="gradient-bg shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3 cursor-pointer" id="logo">
+                    <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                        <span class="text-2xl">🏙️</span>
+                    </div>
+                    <h1 class="text-2xl font-black text-white">FixMaCity</h1>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button id="my-problems-btn" class="text-white hover:text-purple-200 transition-all font-semibold hidden">
+                        Mes problèmes
+                    </button>
+                    <button id="leaderboard-btn" class="text-white hover:text-purple-200 transition-all font-semibold">
+                        🏆 Classement
+                    </button>
+                    <button id="add-problem-btn" class="bg-white text-purple-700 px-6 py-2 rounded-xl font-bold hover:shadow-lg transition-all">
+                        ➕ Signaler gratuit
+                    </button>
+                    <div id="user-avatar" class="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer">
+                        <span class="text-xl">👤</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        
+        <!-- Landing Page -->
+        <div id="landing-page">
+            <div class="text-center mb-12">
+                <h2 class="text-5xl font-black text-gray-900 mb-4">
+                    Améliorons nos villes<br/>
+                    <span class="gradient-bg bg-clip-text text-transparent">ensemble</span> 🌆
+                </h2>
+                <p class="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+                    Signalez les problèmes de votre quartier. Votez pour prioriser. Aidez à résoudre. 
+                    Ensemble, rendons nos villes meilleures.
+                </p>
+                <button id="start-btn" class="gradient-bg text-white px-12 py-4 rounded-2xl font-bold text-xl hover:shadow-2xl transition-all">
+                    🚀 Commencer
+                </button>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 mb-16">
+                <div class="bg-white p-8 rounded-2xl shadow-lg text-center">
+                    <div class="text-5xl mb-4">📍</div>
+                    <h3 class="text-xl font-bold mb-3">Signalez</h3>
+                    <p class="text-gray-600">Un nid de poule ? Un graffiti ? Une poubelle qui déborde ? Signalez en 1 clic.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-lg text-center">
+                    <div class="text-5xl mb-4">👍</div>
+                    <h3 class="text-xl font-bold mb-3">Votez</h3>
+                    <p class="text-gray-600">Les problèmes les plus votés sont traités en priorité par la communauté.</p>
+                </div>
+                <div class="bg-white p-8 rounded-2xl shadow-lg text-center">
+                    <div class="text-5xl mb-4">✅</div>
+                    <h3 class="text-xl font-bold mb-3">Résolvez</h3>
+                    <p class="text-gray-600">Aidez physiquement, suivez avec la mairie, ou contribuez financièrement.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sign In Modal (appears after clicking Start) -->
+        <div id="signin-modal" class="hidden fixed inset-0 bg-black/60 z-[1000] flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl max-w-md w-full shadow-2xl p-8">
+                <h2 class="text-3xl font-black text-center mb-2">Bienvenue ! 👋</h2>
+                <p class="text-gray-600 text-center mb-6">Présentez-vous en 10 secondes</p>
+                
+                <form id="signin-form">
+                    <div class="mb-4">
+                        <label class="block font-bold mb-2">Votre pseudo *</label>
+                        <input type="text" id="signin-name" class="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-purple-600 focus:outline-none" placeholder="Ex: Marie" required>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block font-bold mb-2">Votre email *</label>
+                        <input type="email" id="signin-email" class="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-purple-600 focus:outline-none" placeholder="votre@email.com" required>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block font-bold mb-2">Votre ville *</label>
+                        <input type="text" id="signin-city" class="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-purple-600 focus:outline-none" placeholder="Ex: Paris" required>
+                    </div>
+                    
+                    <div class="bg-purple-50 border-2 border-purple-200 rounded-xl p-3 mb-6 text-sm text-purple-700">
+                        ℹ️ Vos données restent privées. Utilisées uniquement pour vous contacter sur les problèmes que vous signalez.
+                    </div>
+                    
+                    <button type="submit" class="w-full gradient-bg text-white py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all">
+                        ✅ C'est parti !
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main App -->
+        <div id="main-app" class="hidden">
+            
+            <!-- User Stats Bar -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8 flex justify-between items-center">
+                <div>
+                    <h3 class="text-2xl font-black text-gray-900 mb-1">Bonjour, <span id="user-name">Citoyen</span> 👋</h3>
+                    <p class="text-gray-600">Continuez à améliorer votre ville !</p>
+                </div>
+                <div class="flex gap-6">
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-purple-600" id="user-points">0</div>
+                        <div class="text-sm text-gray-600">Points</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-pink-600" id="user-problems">0</div>
+                        <div class="text-sm text-gray-600">Problèmes</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-black text-orange-600" id="user-resolved">0</div>
+                        <div class="text-sm text-gray-600">Résolus</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                <div class="flex gap-4 flex-wrap">
+                    <button class="filter-btn active px-6 py-2 rounded-xl font-bold transition-all" data-filter="all">
+                        Tous
+                    </button>
+                    <button class="filter-btn px-6 py-2 rounded-xl font-bold transition-all" data-filter="voirie">
+                        🛣️ Voirie
+                    </button>
+                    <button class="filter-btn px-6 py-2 rounded-xl font-bold transition-all" data-filter="proprete">
+                        🗑️ Propreté
+                    </button>
+                    <button class="filter-btn px-6 py-2 rounded-xl font-bold transition-all" data-filter="securite">
+                        🚨 Sécurité
+                    </button>
+                    <button class="filter-btn px-6 py-2 rounded-xl font-bold transition-all" data-filter="nature">
+                        🌳 Nature
+                    </button>
+                    <button class="filter-btn px-6 py-2 rounded-xl font-bold transition-all" data-filter="autre">
+                        ⚡ Autre
+                    </button>
+                </div>
+            </div>
+
+            <!-- Map -->
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                <h3 class="text-2xl font-bold mb-4">📍 Carte des problèmes</h3>
+                <div id="map" class="rounded-xl overflow-hidden"></div>
+            </div>
+
+            <!-- Problems List -->
+            <div class="bg-white rounded-2xl shadow-lg p-6">
+                <h3 class="text-2xl font-bold mb-6">🔥 Problèmes prioritaires</h3>
+                <div id="problems-list" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Page -->
+        <div id="leaderboard-page" class="hidden">
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <h2 class="text-3xl font-black mb-6 text-center">🏆 Top Citoyens</h2>
+                <div id="leaderboard-list" class="space-y-4"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Add Problem Modal -->
+    <div id="add-problem-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-2xl font-black">➕ Signaler un problème</h3>
+                    <button id="close-modal" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center">✕</button>
+                </div>
+
+                <form id="problem-form">
+                    <div class="mb-6">
+                        <label class="block font-bold mb-3">Catégorie</label>
+                        <select id="problem-category" class="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-purple-600 focus:outline-none" required>
+                            <option value="">Choisir une catégorie</option>
+                            <option value="voirie">🛣️ Voirie (nid de poule, trottoir cassé...)</option>
+                            <option value="proprete">🗑️ Propreté (poubelle, détritus...)</option>
+                            <option value="securite">🚨 Sécurité (éclairage, danger...)</option>
+                            <option value="nature">🌳 Nature (arbre dangereux, espace vert...)</option>
+                            <option value="autre">⚡ Autre</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block font-bold mb-3">Description</label>
+                        <textarea id="problem-description" rows="4" class="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-purple-600 focus:outline-none" placeholder="Décrivez le problème..." required></textarea>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block font-bold mb-3">📍 Localisation</label>
+                        <input type="text" id="problem-address" class="w-full border-2 border-gray-200 rounded-xl p-4 focus:border-purple-600 focus:outline-none mb-4" placeholder="Entrez une adresse...">
+                        <div id="mini-map" style="height: 300px;" class="rounded-xl overflow-hidden"></div>
+                        <p class="text-sm text-gray-600 mt-2">Cliquez sur la carte pour placer le marqueur précisément</p>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block font-bold mb-3">Photo (optionnel)</label>
+                        <input type="file" id="problem-photo" accept="image/*" capture="environment" class="w-full border-2 border-gray-200 rounded-xl p-4">
+                    </div>
+
+                    <div class="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-xl p-4 mb-6">
+                        <p class="font-bold text-green-900 mb-2">🎉 100% Gratuit</p>
+                        <p class="text-sm text-green-700">Vous gagnez +10 points en signalant ce problème !</p>
+                    </div>
+
+                    <button type="submit" class="w-full gradient-bg text-white py-4 rounded-xl font-bold text-lg hover:shadow-2xl transition-all">
+                        ✨ Publier gratuitement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Problem Detail Modal -->
+    <div id="problem-detail-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-3xl w-full my-8 shadow-2xl">
+            <div id="problem-detail-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== DATA STORAGE ====================
+        
+        const DB = {
+            problems: JSON.parse(localStorage.getItem('fixmacity_problems') || '[]'),
+            users: JSON.parse(localStorage.getItem('fixmacity_users') || '[]'),
+            currentUser: JSON.parse(localStorage.getItem('fixmacity_currentUser') || 'null'),
+            votes: JSON.parse(localStorage.getItem('fixmacity_votes') || '[]'),
+            
+            save() {
+                localStorage.setItem('fixmacity_problems', JSON.stringify(this.problems));
+                localStorage.setItem('fixmacity_users', JSON.stringify(this.users));
+                localStorage.setItem('fixmacity_currentUser', JSON.stringify(this.currentUser));
+                localStorage.setItem('fixmacity_votes', JSON.stringify(this.votes));
+            },
+            
+            initDemo() {
+                if (this.users.length === 0) {
+                    this.users = [
+                        { id: 1, name: 'Marie Dubois', email: 'marie@demo.fr', city: 'Paris', points: 350, problemsPosted: 12, problemsResolved: 8 },
+                        { id: 2, name: 'Thomas Martin', email: 'thomas@demo.fr', city: 'Lyon', points: 280, problemsPosted: 8, problemsResolved: 6 },
+                        { id: 3, name: 'Sophie Laurent', email: 'sophie@demo.fr', city: 'Marseille', points: 420, problemsPosted: 15, problemsResolved: 10 }
+                    ];
+                }
+                
+                // Check if user has signed in - if not, currentUser will be null
+                // Don't auto-create user here - will be created on sign in
+                
+                if (this.problems.length === 0) {
+                    this.problems = [
+                        {
+                            id: 1,
+                            category: 'voirie',
+                            description: 'Nid de poule dangereux sur Avenue des Champs',
+                            address: '75 Avenue des Champs-Élysées, Paris',
+                            lat: 48.8698,
+                            lng: 2.3078,
+                            photo: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400',
+                            userId: 1,
+                            status: 'signale',
+                            votes: 45,
+                            timestamp: Date.now() - 2*24*60*60*1000,
+                            comments: []
+                        },
+                        {
+                            id: 2,
+                            category: 'proprete',
+                            description: 'Poubelle débordante jamais ramassée',
+                            address: 'Rue de Rivoli, Paris',
+                            lat: 48.8606,
+                            lng: 2.3376,
+                            photo: 'https://images.unsplash.com/photo-1604187351574-c75ca79f5807?w=400',
+                            userId: 2,
+                            status: 'en_cours',
+                            votes: 32,
+                            timestamp: Date.now() - 1*24*60*60*1000,
+                            comments: []
+                        }
+                    ];
+                }
+                
+                this.save();
+            }
+        };
+
+        DB.initDemo();
+
+        // ==================== APP STATE ====================
+        
+        const App = {
+            map: null,
+            miniMap: null,
+            markers: [],
+            selectedLocation: { lat: 48.8566, lng: 2.3522 }, // Paris par défaut
+            currentFilter: 'all',
+            
+            init() {
+                this.setupEventListeners();
+                this.showLanding();
+            },
+            
+            showLanding() {
+                document.getElementById('landing-page').classList.remove('hidden');
+                document.getElementById('main-app').classList.add('hidden');
+                document.getElementById('leaderboard-page').classList.add('hidden');
+            },
+            
+            showMainApp() {
+                // Check if user is signed in
+                if (!DB.currentUser) {
+                    // Show sign in modal instead
+                    document.getElementById('signin-modal').classList.remove('hidden');
+                    return;
+                }
+                
+                document.getElementById('landing-page').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                document.getElementById('leaderboard-page').classList.add('hidden');
+                this.updateUserStats();
+                this.initMap();
+                this.renderProblems();
+            },
+            
+            showLeaderboard() {
+                document.getElementById('landing-page').classList.add('hidden');
+                document.getElementById('main-app').classList.add('hidden');
+                document.getElementById('leaderboard-page').classList.remove('hidden');
+                this.renderLeaderboard();
+            },
+            
+            updateUserStats() {
+                const user = DB.currentUser;
+                document.getElementById('user-name').textContent = user.name;
+                document.getElementById('user-points').textContent = user.points;
+                document.getElementById('user-problems').textContent = user.problemsPosted;
+                document.getElementById('user-resolved').textContent = user.problemsResolved;
+            },
+            
+            initMap() {
+                if (!this.map) {
+                    this.map = new google.maps.Map(document.getElementById('map'), {
+                        center: this.selectedLocation,
+                        zoom: 13,
+                        styles: [
+                            { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }
+                        ]
+                    });
+                }
+                this.renderMapMarkers();
+            },
+            
+            renderMapMarkers() {
+                // Clear existing markers
+                this.markers.forEach(marker => marker.setMap(null));
+                this.markers = [];
+                
+                // Filter problems
+                const filteredProblems = this.currentFilter === 'all' 
+                    ? DB.problems 
+                    : DB.problems.filter(p => p.category === this.currentFilter);
+                
+                // Add markers
+                filteredProblems.forEach(problem => {
+                    const marker = new google.maps.Marker({
+                        position: { lat: problem.lat, lng: problem.lng },
+                        map: this.map,
+                        title: problem.description,
+                        icon: {
+                            url: this.getMarkerIcon(problem.category, problem.status),
+                            scaledSize: new google.maps.Size(40, 40)
+                        }
+                    });
+                    
+                    marker.addListener('click', () => {
+                        this.showProblemDetail(problem.id);
+                    });
+                    
+                    this.markers.push(marker);
+                });
+            },
+            
+            getMarkerIcon(category, status) {
+                const colors = {
+                    voirie: 'blue',
+                    proprete: 'green',
+                    securite: 'red',
+                    nature: 'green',
+                    autre: 'gray'
+                };
+                const color = colors[category] || 'gray';
+                const opacity = status === 'resolu' ? '0.5' : '1';
+                return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='18' fill='${color}' opacity='${opacity}' stroke='white' stroke-width='2'/%3E%3C/svg%3E`;
+            },
+            
+            renderProblems() {
+                const container = document.getElementById('problems-list');
+                const filteredProblems = this.currentFilter === 'all' 
+                    ? DB.problems 
+                    : DB.problems.filter(p => p.category === this.currentFilter);
+                
+                const sortedProblems = [...filteredProblems].sort((a, b) => b.votes - a.votes);
+                
+                container.innerHTML = sortedProblems.map(problem => {
+                    const user = DB.users.find(u => u.id === problem.userId);
+                    const hasVoted = DB.votes.some(v => v.userId === DB.currentUser.id && v.problemId === problem.id);
+                    const statusLabels = {
+                        signale: '🔴 Signalé',
+                        en_cours: '🟡 En cours',
+                        resolu: '🟢 Résolu'
+                    };
+                    
+                    return `
+                        <div class="border-2 border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all cursor-pointer" onclick="App.showProblemDetail(${problem.id})">
+                            <div class="flex gap-6">
+                                ${problem.photo ? `<img src="${problem.photo}" class="w-32 h-32 object-cover rounded-xl flex-shrink-0">` : ''}
+                                <div class="flex-1">
+                                    <div class="flex items-start justify-between mb-3">
+                                        <div>
+                                            <span class="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-bold mb-2">
+                                                ${this.getCategoryLabel(problem.category)}
+                                            </span>
+                                            <h4 class="text-xl font-bold text-gray-900">${problem.description}</h4>
+                                            <p class="text-gray-600 text-sm mt-1">📍 ${problem.address}</p>
+                                        </div>
+                                        <span class="text-sm font-bold ${problem.status === 'resolu' ? 'text-green-600' : problem.status === 'en_cours' ? 'text-yellow-600' : 'text-red-600'}">
+                                            ${statusLabels[problem.status]}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-6 mt-4">
+                                        <button class="flex items-center gap-2 ${hasVoted ? 'text-purple-600' : 'text-gray-600'} hover:text-purple-600 transition-all" onclick="event.stopPropagation(); App.toggleVote(${problem.id})">
+                                            <span class="text-2xl">${hasVoted ? '👍' : '👍🏻'}</span>
+                                            <span class="font-bold text-lg">${problem.votes}</span>
+                                        </button>
+                                        <span class="text-gray-500 text-sm">Par ${user?.name || 'Anonyme'}</span>
+                                        <span class="text-gray-500 text-sm">${this.formatDate(problem.timestamp)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            getCategoryLabel(category) {
+                const labels = {
+                    voirie: '🛣️ Voirie',
+                    proprete: '🗑️ Propreté',
+                    securite: '🚨 Sécurité',
+                    nature: '🌳 Nature',
+                    autre: '⚡ Autre'
+                };
+                return labels[category] || category;
+            },
+            
+            formatDate(timestamp) {
+                const diff = Date.now() - timestamp;
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                if (days === 0) return "Aujourd'hui";
+                if (days === 1) return "Hier";
+                return `Il y a ${days} jours`;
+            },
+            
+            toggleVote(problemId) {
+                const existingVote = DB.votes.findIndex(v => v.userId === DB.currentUser.id && v.problemId === problemId);
+                const problem = DB.problems.find(p => p.id === problemId);
+                
+                if (existingVote >= 0) {
+                    DB.votes.splice(existingVote, 1);
+                    problem.votes--;
+                } else {
+                    DB.votes.push({ userId: DB.currentUser.id, problemId: problemId });
+                    problem.votes++;
+                    DB.currentUser.points += 5;
+                }
+                
+                DB.save();
+                this.renderProblems();
+                this.updateUserStats();
+            },
+            
+            showProblemDetail(problemId) {
+                const problem = DB.problems.find(p => p.id === problemId);
+                const user = DB.users.find(u => u.id === problem.userId);
+                const hasVoted = DB.votes.some(v => v.userId === DB.currentUser.id && v.problemId === problem.id);
+                const statusLabels = {
+                    signale: '🔴 Signalé',
+                    en_cours: '🟡 En cours',
+                    resolu: '🟢 Résolu'
+                };
+                
+                const content = `
+                    <div class="p-8">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <span class="inline-block px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-bold mb-3">
+                                    ${this.getCategoryLabel(problem.category)}
+                                </span>
+                                <h2 class="text-3xl font-black text-gray-900 mb-2">${problem.description}</h2>
+                                <p class="text-gray-600">📍 ${problem.address}</p>
+                            </div>
+                            <button onclick="App.closeProblemDetail()" class="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center">✕</button>
+                        </div>
+                        
+                        ${problem.photo ? `<img src="${problem.photo}" class="w-full h-96 object-cover rounded-2xl mb-6">` : ''}
+                        
+                        <div class="flex items-center gap-6 mb-6">
+                            <button class="flex items-center gap-3 px-6 py-3 ${hasVoted ? 'bg-purple-600 text-white' : 'bg-gray-100'} rounded-xl font-bold hover:shadow-lg transition-all" onclick="App.toggleVote(${problem.id}); App.showProblemDetail(${problem.id})">
+                                <span class="text-2xl">👍</span>
+                                <span class="text-xl">${problem.votes} votes</span>
+                            </button>
+                            <span class="font-bold text-lg ${problem.status === 'resolu' ? 'text-green-600' : problem.status === 'en_cours' ? 'text-yellow-600' : 'text-red-600'}">
+                                ${statusLabels[problem.status]}
+                            </span>
+                        </div>
+                        
+                        <div class="bg-gray-50 rounded-2xl p-6 mb-6">
+                            <h3 class="font-bold text-lg mb-4">💡 Comment aider ?</h3>
+                            <div class="grid md:grid-cols-3 gap-4">
+                                <button class="bg-white p-4 rounded-xl hover:shadow-md transition-all">
+                                    <div class="text-3xl mb-2">🔧</div>
+                                    <div class="font-bold mb-1">Aider physiquement</div>
+                                    <div class="text-sm text-gray-600">Je peux résoudre ce problème</div>
+                                </button>
+                                <button class="bg-white p-4 rounded-xl hover:shadow-md transition-all">
+                                    <div class="text-3xl mb-2">📧</div>
+                                    <div class="font-bold mb-1">Contacter la mairie</div>
+                                    <div class="text-sm text-gray-600">Je gère le suivi administratif</div>
+                                </button>
+                                <button class="bg-white p-4 rounded-xl hover:shadow-md transition-all">
+                                    <div class="text-3xl mb-2">💰</div>
+                                    <div class="font-bold mb-1">Contribuer (5€)</div>
+                                    <div class="text-sm text-gray-600">J'aide à financer la solution</div>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="border-t border-gray-200 pt-6">
+                            <p class="text-sm text-gray-600">Signalé par <strong>${user?.name || 'Anonyme'}</strong> • ${this.formatDate(problem.timestamp)}</p>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('problem-detail-content').innerHTML = content;
+                document.getElementById('problem-detail-modal').classList.remove('hidden');
+            },
+            
+            closeProblemDetail() {
+                document.getElementById('problem-detail-modal').classList.add('hidden');
+            },
+            
+            renderLeaderboard() {
+                const sortedUsers = [...DB.users].sort((a, b) => b.points - a.points);
+                const container = document.getElementById('leaderboard-list');
+                
+                container.innerHTML = sortedUsers.map((user, index) => {
+                    const badges = {
+                        0: '🥇',
+                        1: '🥈',
+                        2: '🥉'
+                    };
+                    
+                    return `
+                        <div class="flex items-center justify-between p-6 ${index < 3 ? 'bg-gradient-to-r from-purple-50 to-pink-50' : 'bg-gray-50'} rounded-2xl">
+                            <div class="flex items-center gap-4">
+                                <span class="text-3xl font-black ${index < 3 ? 'text-purple-600' : 'text-gray-400'}">${badges[index] || `#${index + 1}`}</span>
+                                <div>
+                                    <h4 class="text-xl font-bold">${user.name}</h4>
+                                    <p class="text-gray-600 text-sm">${user.problemsPosted} problèmes • ${user.problemsResolved} résolus</p>
+                                </div>
+                            </div>
+                            <div class="text-3xl font-black text-purple-600">${user.points} pts</div>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            setupEventListeners() {
+                document.getElementById('start-btn').addEventListener('click', () => this.showMainApp());
+                document.getElementById('logo').addEventListener('click', () => this.showMainApp());
+                document.getElementById('leaderboard-btn').addEventListener('click', () => this.showLeaderboard());
+                document.getElementById('add-problem-btn').addEventListener('click', () => this.openAddProblemModal());
+                document.getElementById('close-modal').addEventListener('click', () => this.closeAddProblemModal());
+                
+                // Sign in form
+                document.getElementById('signin-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const name = document.getElementById('signin-name').value.trim();
+                    const email = document.getElementById('signin-email').value.trim();
+                    const city = document.getElementById('signin-city').value.trim();
+                    
+                    if (name && email && city) {
+                        // Create new user
+                        DB.currentUser = {
+                            id: Date.now(),
+                            name: name,
+                            email: email,
+                            city: city,
+                            points: 0,
+                            problemsPosted: 0,
+                            problemsResolved: 0
+                        };
+                        DB.users.push(DB.currentUser);
+                        DB.save();
+                        
+                        // Hide modal and show app
+                        document.getElementById('signin-modal').classList.add('hidden');
+                        this.showMainApp();
+                    }
+                });
+                
+                // Filters
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-purple-600', 'text-white'));
+                        btn.classList.add('active', 'bg-purple-600', 'text-white');
+                        this.currentFilter = btn.dataset.filter;
+                        this.renderProblems();
+                        this.renderMapMarkers();
+                    });
+                });
+                
+                // Form
+                document.getElementById('problem-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.submitProblem();
+                });
+            },
+            
+            openAddProblemModal() {
+                document.getElementById('add-problem-modal').classList.remove('hidden');
+                
+                // Init mini map
+                setTimeout(() => {
+                    if (!this.miniMap) {
+                        this.miniMap = new google.maps.Map(document.getElementById('mini-map'), {
+                            center: this.selectedLocation,
+                            zoom: 15
+                        });
+                        
+                        const marker = new google.maps.Marker({
+                            position: this.selectedLocation,
+                            map: this.miniMap,
+                            draggable: true
+                        });
+                        
+                        this.miniMap.addListener('click', (e) => {
+                            marker.setPosition(e.latLng);
+                            this.selectedLocation = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                        });
+                        
+                        marker.addListener('dragend', (e) => {
+                            this.selectedLocation = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+                        });
+                    }
+                }, 100);
+            },
+            
+            closeAddProblemModal() {
+                document.getElementById('add-problem-modal').classList.add('hidden');
+                document.getElementById('problem-form').reset();
+            },
+            
+            submitProblem() {
+                // Check for duplicates within 50m
+                const nearby = DB.problems.filter(p => {
+                    const distance = this.calculateDistance(p.lat, p.lng, this.selectedLocation.lat, this.selectedLocation.lng);
+                    return distance < 0.05; // 50 meters
+                });
+                
+                if (nearby.length > 0) {
+                    if (!confirm('Un problème similaire existe à proximité. Voulez-vous quand même poster ?')) {
+                        return;
+                    }
+                }
+                
+                // No payment needed - free for now
+                if (!confirm('Publier ce problème et gagner +10 points ?')) {
+                    return;
+                }
+                
+                const newProblem = {
+                    id: Date.now(),
+                    category: document.getElementById('problem-category').value,
+                    description: document.getElementById('problem-description').value,
+                    address: document.getElementById('problem-address').value || 'Localisation manuelle',
+                    lat: this.selectedLocation.lat,
+                    lng: this.selectedLocation.lng,
+                    photo: null, // Would upload to Cloudinary in real app
+                    userId: DB.currentUser.id,
+                    status: 'signale',
+                    votes: 1,
+                    timestamp: Date.now(),
+                    comments: []
+                };
+                
+                DB.problems.push(newProblem);
+                DB.currentUser.problemsPosted++;
+                DB.currentUser.points += 10;
+                DB.save();
+                
+                this.closeAddProblemModal();
+                this.renderProblems();
+                this.renderMapMarkers();
+                this.updateUserStats();
+                
+                alert('✅ Problème publié avec succès ! +10 points');
+            },
+            
+            calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371; // km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                        Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+        };
+
+        // Initialize app
+        App.init();
+    </script>
+
+</body>
+</html>
